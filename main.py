@@ -5,26 +5,16 @@
 import os
 import re
 import sys
-import json
 import time
-import asyncio
-import requests
-import subprocess  # Ensure subprocess is imported
-
-import core as helper
-from utils import progress_bar
-from vars import API_ID, API_HASH, BOT_TOKEN
-from aiohttp import ClientSession
-from pyromod import listen
-from subprocess import getstatusoutput
-
+import subprocess
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyrogram.errors import FloodWait
-from pyrogram.errors.exceptions.bad_request_400 import StickerEmojiInvalid
-from pyrogram.types.messages_and_media import message
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+# Replace with your actual API ID and HASH
+API_ID = "your_api_id"
+API_HASH = "your_api_hash"
+BOT_TOKEN = "your_bot_token"
 
 bot = Client(
     "bot",
@@ -32,95 +22,83 @@ bot = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN)
 
+# Ensure the downloads directory exists
+if not os.path.exists("./downloads"):
+    os.makedirs("./downloads")
 
 def reencode_video(input_file, output_file):
     """
     Re-encodes a video file using FFmpeg to fix issues like missing moov atom.
-
-    Parameters:
-        input_file (str): Path to the input video file.
-        output_file (str): Path where the re-encoded video will be saved.
     """
     try:
-        # FFmpeg command to re-encode the video
         command = [
             'ffmpeg', '-i', input_file, '-c:v', 'copy', '-c:a', 'copy', output_file
         ]
-
-        # Execute the command
         subprocess.run(command, check=True)
         print(f"Successfully re-encoded the video to {output_file}")
-
     except subprocess.CalledProcessError as e:
         print(f"Error occurred during re-encoding: {e}")
 
-
 @bot.on_message(filters.command(["start"]))
 async def start(bot: Client, m: Message):
-    await m.reply_text(f"<b>Hello {m.from_user.mention} 👋\n\n I Am A Bot For Download Links From Your **.TXT** File And Then Upload That File On Telegram So Basically If You Want To Use Me First Send Me /upload Command And Then Follow Few Steps..\n\nUse /stop to stop any ongoing task.</b>")
-
+    await m.reply_text(f"<b>Hello {m.from_user.mention} 👋\n\nI Am A Bot For Download Links From Your **.TXT** File. Use /upload to start.</b>")
 
 @bot.on_message(filters.command("stop"))
-async def restart_handler(_, m):
+async def stop(bot: Client, m: Message):
     await m.reply_text("**Stopped**🚦", True)
     os.execl(sys.executable, sys.executable, *sys.argv)
-
 
 @bot.on_message(filters.command(["upload"]))
 async def upload(bot: Client, m: Message):
     editable = await m.reply_text('⏳ Please upload your .TXT file containing download links...')
     input: Message = await bot.listen(editable.chat.id)
-    x = await input.download()
+    
+    # Download the uploaded file
+    file_path = await input.download()
     await input.delete(True)
 
-    path = f"./downloads/{m.chat.id}"
-
     try:
-        with open(x, "r") as f:
-            content = f.read()
-        content = content.split("\n")
-        links = []
-        for i in content:
-            links.append(i.split("://", 1))
-        os.remove(x)
-    except:
-        await m.reply_text("**Invalid file input.**")
-        os.remove(x)
-        return
+        with open(file_path, "r") as f:
+            content = f.read().strip().split("\n")
+        
+        os.remove(file_path)  # Remove the original uploaded file
+        links = [line for line in content if line]
 
-    await editable.edit(f"**Successfully received {len(links)} links!**")
+        await editable.edit(f"**Successfully received {len(links)} links!**")
 
-    # Here we will process the links and download the videos
-    for link in links:
-        # Assuming the link is in the correct format, you will need to handle the downloading
-        # For demonstration, let's say you have a function download_video that uses yt-dlp
-        url = link[1]  # Extracting the URL from the link
-        name = url.split('/')[-1]  # Getting a filename from the URL
+        for link in links:
+            name = link.split('/')[-1].split('.')[0]  # Get a base name from the URL
+            video_file_path = f"./downloads/{name}.mp4"
+            fixed_video_path = f"./downloads/fixed_{name}.mp4"
 
-        # Example path for the video
-        video_file_path = f"./downloads/{name}.mp4"
-        fixed_video_path = f"./downloads/fixed_{name}.mp4"
+            try:
+                # Here you should replace this with your actual download logic
+                # Example download logic (just a placeholder):
+                print(f"Downloading video from {link} to {video_file_path}")
+                # Assume you have a function called download_video(link, video_file_path)
+                # download_video(link, video_file_path)
+                
+                # For demonstration, we're just creating an empty file
+                with open(video_file_path, 'wb') as f:
+                    f.write(b'')  # Placeholder for actual video data
 
-        # Attempt to download the video using your existing logic.
-        try:
-            # Here you would replace this with the actual download logic
-            # For example: download_video(url, video_file_path)
-            pass  # Placeholder for download logic
+                # Check if the video file exists after the download
+                if not os.path.exists(video_file_path):
+                    await m.reply_text(f"**Failed to download video from {link}**")
+                    continue
 
-            # Check if the downloaded video file has issues
-            if not os.path.exists(video_file_path):
-                await m.reply_text(f"**Failed to download video from {url}**")
-                continue
+                # Attempt to re-encode the video
+                reencode_video(video_file_path, fixed_video_path)
 
-            # Re-encode the video if necessary
-            reencode_video(video_file_path, fixed_video_path)
+                # Send the re-encoded video back to the user
+                await bot.send_document(chat_id=m.chat.id, document=fixed_video_path)
 
-            # Now you can send the re-encoded video if needed
-            await bot.send_document(chat_id=m.chat.id, document=fixed_video_path)
+            except Exception as e:
+                await m.reply_text(f"**Error processing {link}: {str(e)}**")
 
-        except Exception as e:
-            await m.reply_text(f"**Error processing {url}:** {str(e)}")
+        await m.reply_text("**All files processed!**")
 
-    await m.reply_text("**All files processed!**")
+    except Exception as e:
+        await m.reply_text(f"**Error reading the file: {str(e)}**")
 
 bot.run()
