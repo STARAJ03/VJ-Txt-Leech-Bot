@@ -1,7 +1,3 @@
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
-
 import os
 import time
 import datetime
@@ -15,104 +11,186 @@ import subprocess
 import concurrent.futures
 
 from utils import progress_bar
+
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
 def duration(filename):
-    try:
-        # Run ffprobe command to get the duration of the video
-        result = subprocess.run(
-            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filename],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        # Check for errors in stderr
-        if result.stderr:
-            raise ValueError(result.stderr.decode().strip())
-        
-        # Convert the output to float
-        return float(result.stdout.strip())
+    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                             "format=duration", "-of",
+                             "default=noprint_wrappers=1:nokey=1", filename],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
+    return float(result.stdout)
     
-    except ValueError as e:
-        print(f"Error: {e}")
-        return None  # or handle it in a way that fits your application's needs
-
 def exec(cmd):
-    # Executes a shell command and returns its output.
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return result.stdout.decode().strip(), result.stderr.decode().strip()
-
+        process = subprocess.run(cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        output = process.stdout.decode()
+        print(output)
+        return output
+        #err = process.stdout.decode()
 def pull_run(work, cmds):
-    # Executes a list of shell commands concurrently using a thread pool.
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {executor.submit(exec, cmd): cmd for cmd in cmds}
-        for future in concurrent.futures.as_completed(futures):
-            cmd = futures[future]
-            try:
-                output, error = future.result()
-                if output:
-                    print(f"Output of {cmd}: {output}")
-                if error:
-                    print(f"Error in {cmd}: {error}")
-            except Exception as e:
-                print(f"Command {cmd} generated an exception: {e}")
-
-async def aio(url, name):
-    # Asynchronously download a file from a URL and save it as a PDF.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=work) as executor:
+        print("Waiting for tasks to complete")
+        fut = executor.map(exec,cmds)
+async def aio(url,name):
+    k = f'{name}.pdf'
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                async with aiofiles.open(name, 'wb') as f:
-                    await f.write(await response.read())
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                f = await aiofiles.open(k, mode='wb')
+                await f.write(await resp.read())
+                await f.close()
+    return k
 
-def download(url, name):
-    # Synchronously download a file in chunks from a URL.
-    response = requests.get(url, stream=True)
-    with open(name, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=10240):
-            f.write(chunk)
+
+async def download(url,name):
+    ka = f'{name}.pdf'
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                f = await aiofiles.open(ka, mode='wb')
+                await f.write(await resp.read())
+                await f.close()
+    return ka
+
+
 
 def parse_vid_info(info):
-    # Parses video information and extracts relevant details excluding resolutions and audio formats.
-    # Implementation goes here...
-    pass
+    info = info.strip()
+    info = info.split("\n")
+    new_info = []
+    temp = []
+    for i in info:
+        i = str(i)
+        if "[" not in i and '---' not in i:
+            while "  " in i:
+                i = i.replace("  ", " ")
+            i.strip()
+            i = i.split("|")[0].split(" ",2)
+            try:
+                if "RESOLUTION" not in i[2] and i[2] not in temp and "audio" not in i[2]:
+                    temp.append(i[2])
+                    new_info.append((i[0], i[2]))
+            except:
+                pass
+    return new_info
+
 
 def vid_info(info):
-    # Similar to parse_vid_info, but returns a dictionary mapping format identifiers to other details.
-    # Implementation goes here...
-    pass
+    info = info.strip()
+    info = info.split("\n")
+    new_info = dict()
+    temp = []
+    for i in info:
+        i = str(i)
+        if "[" not in i and '---' not in i:
+            while "  " in i:
+                i = i.replace("  ", " ")
+            i.strip()
+            i = i.split("|")[0].split(" ",3)
+            try:
+                if "RESOLUTION" not in i[2] and i[2] not in temp and "audio" not in i[2]:
+                    temp.append(i[2])
+                    
+                    # temp.update(f'{i[2]}')
+                    # new_info.append((i[2], i[0]))
+                    #  mp4,mkv etc ==== f"({i[1]})" 
+                    
+                    new_info.update({f'{i[2]}':f'{i[0]}'})
 
-def run(cmd):
-    # Asynchronously runs a shell command and captures its output.
-    # Implementation goes here...
-    pass
+            except:
+                pass
+    return new_info
 
-def old_download(url, file_name, chunk_size=10240):
-    # Synchronously downloads a file in chunks from a URL.
-    # Implementation goes here...
-    pass
+
+
+async def run(cmd):
+    proc = await asyncio.create_subprocess_shell(
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
+
+    stdout, stderr = await proc.communicate()
+
+    print(f'[{cmd!r} exited with {proc.returncode}]')
+    if proc.returncode == 1:
+        return False
+    if stdout:
+        return f'[stdout]\n{stdout.decode()}'
+    if stderr:
+        return f'[stderr]\n{stderr.decode()}'
+
+    
+
+def old_download(url, file_name, chunk_size = 1024 * 10):
+    if os.path.exists(file_name):
+        os.remove(file_name)
+    r = requests.get(url, allow_redirects=True, stream=True)
+    with open(file_name, 'wb') as fd:
+        for chunk in r.iter_content(chunk_size=chunk_size):
+            if chunk:
+                fd.write(chunk)
+    return file_name
+
 
 def human_readable_size(size, decimal_places=2):
-    # Converts a size in bytes to a human-readable format (KB, MB, GB, etc.).
-    # Implementation goes here...
-    pass
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB']:
+        if size < 1024.0 or unit == 'PB':
+            break
+        size /= 1024.0
+    return f"{size:.{decimal_places}f} {unit}"
+
 
 def time_name():
-    # Generates a timestamped filename based on the current date and time.
-    return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    date = datetime.date.today()
+    now = datetime.datetime.now()
+    current_time = now.strftime("%H%M%S")
+    return f"{date} {current_time}.mp4"
 
-def download_video(url, cmd, name):
-    # Downloads a video using a specific command with aria2c, retries if the download fails.
-    # Implementation goes here...
-    pass
 
-async def send_doc(bot, m, cc, ka, cc1, prog, count, name):
-    # Asynchronously sends a document to a Telegram chat.
-    # Implementation goes here...
-    pass
+async def download_video(url,cmd, name):
+    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
+    global failed_counter
+    print(download_cmd)
+    logging.info(download_cmd)
+    k = subprocess.run(download_cmd, shell=True)
+    if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
+        failed_counter += 1
+        await asyncio.sleep(5)
+        await download_video(url, cmd, name)
+    failed_counter = 0
+    try:
+        if os.path.isfile(name):
+            return name
+        elif os.path.isfile(f"{name}.webm"):
+            return f"{name}.webm"
+        name = name.split(".")[0]
+        if os.path.isfile(f"{name}.mkv"):
+            return f"{name}.mkv"
+        elif os.path.isfile(f"{name}.mp4"):
+            return f"{name}.mp4"
+        elif os.path.isfile(f"{name}.mp4.webm"):
+            return f"{name}.mp4.webm"
 
-async def send_vid(bot, m, cc, filename, thumb, name, prog):
-# Additional code and implementation details would go here...
+        return name
+    except FileNotFoundError as exc:
+        return os.path.isfile.splitext[0] + "." + "mp4"
+
+
+async def send_doc(bot: Client, m: Message,cc,ka,cc1,prog,count,name):
+    reply = await m.reply_text(f"Uploading » `{name}`")
+    time.sleep(1)
+    start_time = time.time()
+    await m.reply_document(ka,caption=cc1)
+    count+=1
+    await reply.delete (True)
+    time.sleep(1)
+    os.remove(ka)
+    time.sleep(3) 
+
+
+async def send_vid(bot: Client, m: Message,cc,filename,thumb,name,prog):
     
     subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:12 -vframes 1 "{filename}.jpg"', shell=True)
     await prog.delete (True)
