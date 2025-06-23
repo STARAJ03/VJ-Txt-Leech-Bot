@@ -187,16 +187,16 @@ async def upload(bot: Client, m: Message):
                             copy = await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
                             count += 1
                             os.remove(f'{name}.pdf')
-                    else:
-                        await m.reply_text(f"❌ Failed to download PDF (Status Code: {response.status_code})\nURL: {url}")
-                        continue
-                    except FloodWait as e:
-                        await m.reply_text(str(e))
-                        time.sleep(e.x)
-                        continue
-                    except Exception as e:
-                        await m.reply_text(f"❌ PDF download failed:\n{str(e)}\n**URL**: `{url}`")
-                        continue
+                        else:
+                            await m.reply_text(f"❌ Failed to download PDF (Status Code: {response.status_code})\nURL: {url}")
+                            continue
+                        except FloodWait as e:
+                            await m.reply_text(str(e))
+                            time.sleep(e.x)
+                            continue
+                        except Exception as e:
+                            await m.reply_text(f"❌ PDF download failed:\n{str(e)}\n**URL**: `{url}`")
+                            continue
                 else:
                     Show = f"**⥥ 🄳🄾🅆🄽🄻🄾🄰🄳🄸🄽🄶⬇️⬇️... »**\n\n**📝Name »** `{name}\n❄Quality » {raw_text2}`\n\n**🔗URL »** `{url}`"
                     prog = await m.reply_text(Show)
