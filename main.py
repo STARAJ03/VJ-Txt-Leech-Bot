@@ -179,25 +179,21 @@ async def upload(bot: Client, m: Message):
                 
                 elif ".pdf" in url:
                     try:
-                        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-        }
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            with open(f"{name}.pdf", "wb") as f:
-                f.write(response.content)
-            copy = await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
-            count += 1
-            os.remove(f'{name}.pdf')
-        else:
-            await m.reply_text(f"❌ Failed to download PDF (Status Code: {response.status_code})\nURL: {url}")
-            continue
-        except FloodWait as e:
-            await m.reply_text(str(e))
-            time.sleep(e.x)
-            continue
-        
-
+                        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+                        response = requests.get(url, headers=headers)
+                    if response.status_code == 200:
+                        with open(f"{name}.pdf", "wb") as f:
+                            f.write(response.content)
+                            copy = await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
+                            count += 1
+                            os.remove(f'{name}.pdf')
+                    else:
+                        await m.reply_text(f"❌ Failed to download PDF (Status Code: {response.status_code})\nURL: {url}")
+                        continue
+                    except FloodWait as e:
+                        await m.reply_text(str(e))
+                        time.sleep(e.x)
+                        continue
                 else:
                     Show = f"**⥥ 🄳🄾🅆🄽🄻🄾🄰🄳🄸🄽🄶⬇️⬇️... »**\n\n**📝Name »** `{name}\n❄Quality » {raw_text2}`\n\n**🔗URL »** `{url}`"
                     prog = await m.reply_text(Show)
