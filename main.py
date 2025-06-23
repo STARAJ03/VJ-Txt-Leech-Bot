@@ -1,4 +1,3 @@
-
 import os
 import re
 import sys
@@ -179,23 +178,15 @@ async def upload(bot: Client, m: Message):
                 
                 elif ".pdf" in url:
                     try:
-                        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
-                        response = requests.get(url, headers=headers)
-                        if response.status_code == 200:
-                            with open(f"{name}.pdf", "wb") as f:
-                                f.write(response.content)
-                            copy = await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
-                            count += 1
-                            os.remove(f'{name}.pdf')
-                        else:
-                            await m.reply_text(f"❌ Failed to download PDF (Status Code: {response.status_code})\nURL: {url}")
-                            continue
+                        cmd = f'yt-dlp -o "{name}.pdf" "{url}"'
+                        download_cmd = f"{cmd} -R 25 --fragment-retries 25"
+                        os.system(download_cmd)
+                        copy = await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
+                        count += 1
+                        os.remove(f'{name}.pdf')
                     except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
-                        continue
-                    except Exception as e:
-                        await m.reply_text(f"❌ PDF download failed:\n{str(e)}\n**URL**: `{url}`")
                         continue
                 else:
                     Show = f"**⥥ 🄳🄾🅆🄽🄻🄾🄰🄳🄸🄽🄶⬇️⬇️... »**\n\n**📝Name »** `{name}\n❄Quality » {raw_text2}`\n\n**🔗URL »** `{url}`"
