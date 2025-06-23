@@ -181,9 +181,9 @@ async def upload(bot: Client, m: Message):
                     try:
                         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
                         response = requests.get(url, headers=headers)
-                    if response.status_code == 200:
-                        with open(f"{name}.pdf", "wb") as f:
-                            f.write(response.content)
+                        if response.status_code == 200:
+                            with open(f"{name}.pdf", "wb") as f:
+                                f.write(response.content)
                             copy = await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
                             count += 1
                             os.remove(f'{name}.pdf')
@@ -193,6 +193,9 @@ async def upload(bot: Client, m: Message):
                     except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
+                        continue
+                    except Exception as e:
+                        await m.reply_text(f"❌ PDF download failed:\n{str(e)}\n**URL**: `{url}`")
                         continue
                 else:
                     Show = f"**⥥ 🄳🄾🅆🄽🄻🄾🄰🄳🄸🄽🄶⬇️⬇️... »**\n\n**📝Name »** `{name}\n❄Quality » {raw_text2}`\n\n**🔗URL »** `{url}`"
